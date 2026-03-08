@@ -406,8 +406,8 @@
                     
                 aiContainer.innerHTML = pointsHtml;
                 lucide.createIcons();
-            } else { aiContainer.innerHTML = `<li class="text-red-500 text-xs italic">분석 일시 오류</li>`; }
-        } catch (e) { aiContainer.innerHTML = `<li class="text-red-500 text-xs">AI 연결 실패</li>`; }
+            } else { aiContainer.innerHTML = `<li class="text-red-500 text-xs italic"><i data-lucide="alert-circle" class="w-3 h-3 inline"></i> 분석 오류: ${data.message || '알 수 없는 서버 오류'}</li>`; lucide.createIcons(); }
+        } catch (e) { aiContainer.innerHTML = `<li class="text-red-500 text-xs"><i data-lucide="wifi-off" class="w-3 h-3 inline"></i> 통신 실패: 구글 서버 응답 없음</li>`; lucide.createIcons(); }
     }
 
     function showScheduleModal() {
