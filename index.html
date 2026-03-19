@@ -623,7 +623,7 @@
       useEffect(() => {
         fetchSheetData();
         const syncInterval = setInterval(fetchSheetData, 1000 * 60 * 60); 
-        const timer = setInterval(() => setRealTime(new Date()), 1000);
+        const timer = setInterval(() => setRealTime(new Date()), 10000);
         return () => { clearInterval(timer); clearInterval(syncInterval); };
       }, []);
 
