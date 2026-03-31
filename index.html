@@ -99,7 +99,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">이름</label>
-                <input type="text" id="userName" placeholder="예: 김해빛" class="w-full p-3 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none transition">
+                <input type="text" id="userName" placeholder="예: 권효은" class="w-full p-3 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none transition">
             </div>
             
             <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition transform active:scale-95 mt-4 flex justify-center items-center gap-2">
@@ -327,10 +327,20 @@
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
         const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         
+        // 🌟 [프론트엔드 날짜 필터 추가] 
+        // 서버에서 던져준 수많은 날짜 중에 기기의 '오늘 날짜'와 일치하는 데이터만 가져오게 합니다.
+        const days = ["일", "월", "화", "수", "목", "금", "토"];
+        const todayStr = `${now.getMonth() + 1}.${now.getDate()}.(${days[now.getDay()]})`;
+        const compareTodayDate = todayStr.replace(/\s/g, "");
+
         let currentItem = null;
         let nextItem = null;
 
         for (let item of window.currentScheduleData) {
+            // 🚀 핵심: 오늘 날짜가 아니면 무시하고 패스!
+            const itemDate = String(item.date || "").replace(/\s/g, "");
+            if (itemDate && itemDate !== compareTodayDate) continue;
+
             const timeParts = item.time.split(/~|-/);
             const startStr = timeParts[0] ? timeParts[0].trim() : "00:00";
             const endStr = timeParts[1] ? timeParts[1].trim() : "23:59";
@@ -445,7 +455,17 @@
 
     function showScheduleModal() {
         const listDiv = document.getElementById('schedule-list'); listDiv.innerHTML = '';
+        
+        // 🌟 나의 시간표 모달에서도 오늘 일정만 표시되도록 수정
+        const now = new Date();
+        const days = ["일", "월", "화", "수", "목", "금", "토"];
+        const todayStr = `${now.getMonth() + 1}.${now.getDate()}.(${days[now.getDay()]})`;
+        const compareTodayDate = todayStr.replace(/\s/g, "");
+
         window.currentScheduleData.forEach((item) => {
+            const itemDate = String(item.date || "").replace(/\s/g, "");
+            if (itemDate && itemDate !== compareTodayDate) return; // 오늘 날짜 아니면 생략
+
             const dateBadge = item.date ? `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded mr-2">${item.date}</span>` : '';
             const aiBadge = (item.docId && String(item.docId).trim() !== "") ? `<span class="bg-purple-50 text-purple-600 px-2 py-0.5 rounded mr-2 text-[10px] font-bold border border-purple-100"><i data-lucide="sparkles" class="w-3 h-3 inline pb-0.5"></i> AI 수업분석</span>` : '';
             
@@ -461,6 +481,10 @@
                     </div>
                 </div>`;
         });
+        
+        if(listDiv.innerHTML === '') {
+            listDiv.innerHTML = '<p class="text-center text-slate-400 py-10 font-bold">오늘 예정된 일정이 없습니다.</p>';
+        }
         lucide.createIcons(); openModal('schedule-modal');
     }
 
@@ -507,14 +531,6 @@
           3: { title: '3-2 일상수업 참관', location: '3-2 교실' }, 4: { title: '4-1 일상수업 참관', location: '4-1 교실' },
           5: { title: '5-4 일상수업 참관', location: '5-4 교실' }, 6: { title: '6-2 일상수업 참관', location: '6-2 교실' }
         }
-      },
-      { id: 3, start: '10:00', end: '10:40', type: 'common', period: '2교시', title: '교과 지도 역량강화 연수', location: '시청각실' },
-      { id: 4, start: '10:50', end: '11:30', type: 'specific', period: '3교시',
-        grades: {
-          1: { title: '지도교사 협의회', location: '1학년 연구실' }, 2: { title: '지도교사 협의회', location: '2학년 연구실' },
-          3: { title: '지도교사 협의회', location: '3학년 연구실' }, 4: { title: '지도교사 협의회', location: '4학년 연구실' },
-          5: { title: '지도교사 협의회', location: '5학년 연구실' }, 6: { title: '지도교사 협의회', location: '6학년 연구실' }
-        }
       }
     ];
 
@@ -527,11 +543,8 @@
     function AdminApp() {
       const [scheduleData, setScheduleData] = useState([]);
       const [syncStatus, setSyncStatus] = useState('loading');
-      
       const [realTime, setRealTime] = useState(new Date());
-      const [simulatedMinutes, setSimulatedMinutes] = useState(null);
       const [viewMode, setViewMode] = useState('main'); 
-      const [showTestControls, setShowTestControls] = useState(false);
 
       useEffect(() => {
           if (window.lucide) window.lucide.createIcons();
@@ -540,32 +553,38 @@
       const fetchSheetData = async () => {
         setSyncStatus('loading');
         
-        // 1. 현재 로그인한 교생의 데이터로 화면 즉시 렌더링 (0.1초 컷)
+        const today = new Date();
+        const days = ["일", "월", "화", "수", "목", "금", "토"];
+        const todayStr = `${today.getMonth() + 1}.${today.getDate()}.(${days[today.getDay()]})`;
+        const compareTodayDate = todayStr.replace(/\s/g, "");
+
+        // 1. 현재 로그인한 교생의 데이터로 화면 즉시 렌더링 (오늘 날짜 필터 적용)
         if (window.currentScheduleData && window.currentScheduleData.length > 0) {
           const currentG = window.currentGrade || '1';
-          const initialData = window.currentScheduleData.map((item, index) => {
+          const initialData = [];
+          window.currentScheduleData.forEach((item, index) => {
+            const itemDate = String(item.date || "").replace(/\s/g, "");
+            if (itemDate && itemDate !== compareTodayDate) return;
+
             const timeParts = item.time.split(/~|-/);
             const gradesObj = {};
             [1, 2, 3, 4, 5, 6].forEach(g => {
                 gradesObj[g] = String(g) === String(currentG) ? { title: item.subject, location: item.loc } : { title: '-', location: '-' };
             });
-            return { id: index, start: timeParts[0]?.trim() || "", end: timeParts[1]?.trim() || "", type: 'specific', period: '', grades: gradesObj };
+            initialData.push({ id: index, start: timeParts[0]?.trim() || "", end: timeParts[1]?.trim() || "", type: 'specific', period: '', grades: gradesObj });
           });
           setScheduleData(initialData);
         }
 
-        // 2. 백그라운드에서 1~6학년 전체 데이터 앱스스크립트로 끌어오기 (로그인 인증 정보 활용)
+        // 2. 🌟 핵심: 백그라운드 데이터 끌어오기 (선생님이 만든 '관리자, 1반' 마스터키를 강제 적용!)
         try {
           const scriptUrl = window.GOOGLE_SCRIPT_URL;
           if (!scriptUrl) throw new Error("No script URL");
 
-          const userInfo = JSON.parse(localStorage.getItem('eduPlatformUser') || '{}');
-          const safeName = userInfo.name || '';
-          const safeClass = userInfo.classNum || '1';
-
           const grades = [1, 2, 3, 4, 5, 6];
+          // 🚀 어떤 교생이 접속했든, 대시보드에서는 무조건 마스터키(1반 관리자)로 서버에 요청합니다.
           const fetchPromises = grades.map(g => 
-            fetch(`${scriptUrl}?grade=${g}&classNum=${safeClass}&name=${safeName}&t=${new Date().getTime()}`).then(res => res.json())
+            fetch(`${scriptUrl}?grade=${g}&classNum=1&name=관리자&t=${new Date().getTime()}`).then(res => res.json())
           );
           
           const results = await Promise.all(fetchPromises);
@@ -575,6 +594,10 @@
             const grade = grades[index];
             if (data.success && data.schedule) {
               data.schedule.forEach(item => {
+                // 🚀 모든 학년 데이터 중에서 '오늘' 데이터만 걸러냅니다.
+                const itemDate = String(item.date || "").replace(/\s/g, "");
+                if (itemDate && itemDate !== compareTodayDate) return;
+
                 if (!timeMap[item.time]) timeMap[item.time] = { time: item.time, grades: {} };
                 timeMap[item.time].grades[grade] = { title: item.subject, location: item.loc };
               });
@@ -623,22 +646,11 @@
       useEffect(() => {
         fetchSheetData();
         const syncInterval = setInterval(fetchSheetData, 1000 * 60 * 60); 
-        const timer = setInterval(() => setRealTime(new Date()), 10000);
+        const timer = setInterval(() => setRealTime(new Date()), 1000); // 시계는 1초마다, 계산도 1초마다 갱신
         return () => { clearInterval(timer); clearInterval(syncInterval); };
       }, []);
 
-      const displayTime = useMemo(() => {
-        if (simulatedMinutes !== null) {
-          const d = new Date(realTime);
-          d.setHours(Math.floor(simulatedMinutes / 60));
-          d.setMinutes(simulatedMinutes % 60);
-          d.setSeconds(0);
-          return d;
-        }
-        return realTime;
-      }, [realTime, simulatedMinutes]);
-
-      const currentTotalMinutes = displayTime.getHours() * 60 + displayTime.getMinutes();
+      const currentTotalMinutes = realTime.getHours() * 60 + realTime.getMinutes();
 
       const { currentEvent, nextEvent } = useMemo(() => {
         let current = null;
@@ -659,8 +671,8 @@
         return { currentEvent: current, nextEvent: next };
       }, [currentTotalMinutes, scheduleData]);
 
-      const dateString = displayTime.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
-      const timeString = displayTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const dateString = realTime.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
+      const timeString = realTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: true });
 
       const EventCard = ({ event, isCurrent }) => {
         if (!event) {
@@ -735,7 +747,7 @@
               <div className="flex items-center gap-3">
                 <h1 className="text-xl md:text-3xl font-extrabold text-blue-900 tracking-tight flex items-center gap-2">
                   <i data-lucide="graduation-cap" className="text-blue-600 w-6 h-6 md:w-8 md:h-8 mr-1"></i>
-                  오늘의 해빛초 교육 실습
+                  초등 교생실습 대시보드
                 </h1>
                 
                 {syncStatus === 'loading' && <span className="flex items-center gap-1 text-xs md:text-sm font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-full"><i data-lucide="refresh-cw" className="animate-spin w-3.5 h-3.5"></i> 연동 중</span>}
@@ -754,6 +766,7 @@
                 className="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 md:px-4 md:py-3 rounded-xl md:rounded-2xl font-bold transition-colors shadow-sm"
               >
                 <i data-lucide="home" className="w-5 h-5 md:w-6 md:h-6"></i>
+                <span className="hidden md:inline">메인 대시보드로 돌아가기</span>
               </button>
               
               <div className="bg-blue-50 text-blue-700 px-4 py-2 md:px-6 md:py-3 rounded-xl md:rounded-2xl flex items-center gap-2 md:gap-3 border border-blue-100 shadow-sm">
