@@ -382,7 +382,7 @@
                         <div class="mb-3">
                             <span class="text-[11px] font-bold text-slate-500 block mb-0.5">▶ 현재 진행</span>
                             <p class="text-lg font-extrabold text-slate-800 tracking-tight leading-snug break-keep">
-                                ${currentItem ? currentItem.subject : '대기 중'}
+                                ${currentItem ? currentItem.subject : '다음 일정 준비'}
                             </p>
                         </div>
                         <div class="text-sm font-bold text-red-600 bg-red-50 block w-full px-3 py-2 rounded-lg shadow-sm border border-red-100">
@@ -391,7 +391,7 @@
                             ${nextItem ? `
                             <div class="mt-2 pt-2 border-t border-red-200/60 flex items-center justify-between cursor-pointer hover:bg-red-100/50 p-1.5 -mx-1.5 rounded transition" onclick="showMapModal()">
                                 <div class="flex items-center gap-1.5 text-xs text-slate-700 font-bold">
-                                    <span class="truncate max-w-[80px]">📍${currentItem ? currentItem.loc : '대기'}</span>
+                                    <span class="truncate max-w-[80px]">📍${currentItem ? currentItem.loc : '이동 준비'}</span>
                                     <i data-lucide="arrow-right" class="w-3 h-3 text-slate-400"></i>
                                     <span class="text-red-600 truncate max-w-[80px]">🚩${nextItem.loc}</span>
                                 </div>
